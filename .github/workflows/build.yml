@@ -100,6 +100,12 @@ jobs:
         if: runner.os == 'macOS' && !steps.cache-tools.outputs.cache-hit
         run: cargo install cargo-bundle
 
+      - name: Verify cargo-bundle installation
+        if: runner.os == 'macOS'
+        run: |
+          cargo bundle --version
+          which cargo-bundle
+
       - name: Install create-dmg
         if: runner.os == 'macOS' && !steps.cache-tools.outputs.cache-hit
         run: brew install create-dmg
@@ -111,16 +117,59 @@ jobs:
           lipo -create -output psst-gui/target/release/psst-gui \
             target/x86_64-apple-darwin/release/psst-gui \
             target/aarch64-apple-darwin/release/psst-gui
+          
+          # Vérifier que le binaire universel a été créé
+          echo "Universal binary created:"
+          ls -la psst-gui/target/release/psst-gui
+          file psst-gui/target/release/psst-gui
 
       - name: Bundle macOS Release
         if: runner.os == 'macOS'
-        run: cargo bundle --release
+        run: |
+          # Vérifier la structure du projet
+          echo "Current directory: $(pwd)"
+          echo "Project structure:"
+          ls -la
+          echo "Cargo.toml bundle metadata:"
+          grep -A 20 "package.metadata.bundle" Cargo.toml || echo "No bundle metadata found"
+          
+          # Exécuter cargo bundle
+          cargo bundle --release
+          
+          # Vérifier le résultat
+          echo "Bundle output:"
+          ls -la target/release/bundle/
+          ls -la target/release/bundle/osx/
+          
+          # Vérifier que l'app bundle est valide
+          if [ -d "target/release/bundle/osx/Psst.app" ]; then
+            echo "Psst.app bundle found and valid:"
+            ls -la target/release/bundle/osx/Psst.app/
+            ls -la target/release/bundle/osx/Psst.app/Contents/
+          else
+            echo "ERROR: Psst.app bundle not found!"
+            find target/release/bundle/ -type d -name "*.app" || echo "No .app bundles found"
+            exit 1
+          fi
         working-directory: psst-gui
 
       - name: Create DMG
         if: runner.os == 'macOS'
         run: |
-          brew install create-dmg
+          # Vérifier que l'app bundle existe
+          if [ ! -d "target/release/bundle/osx/Psst.app" ]; then
+            echo "Error: Psst.app bundle not found!"
+            ls -la target/release/bundle/
+            exit 1
+          fi
+          
+          # Vérifier que l'icône existe
+          if [ ! -f "assets/logo.icns" ]; then
+            echo "Error: logo.icns not found!"
+            ls -la assets/
+            exit 1
+          fi
+          
           create-dmg \
             --volname "Psst" \
             --volicon "assets/logo.icns" \

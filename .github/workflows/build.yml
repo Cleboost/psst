@@ -55,8 +55,9 @@ jobs:
       - name: Prepare Assets
         run: |
           mkdir release
-          mv artifacts/*/psst-gui* release/
-          mv artifacts/*/Psst.dmg release/ || true
+          mv artifacts/binary-ubuntu-latest/psst-gui release/psst-linux
+          mv artifacts/binary-windows-latest/psst-gui.exe release/psst-windows.exe
+          mv artifacts/binary-macOS-latest/Psst.dmg release/Psst.dmg || true
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: rolling
